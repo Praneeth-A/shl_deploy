@@ -1,30 +1,30 @@
 # streamlit_app.py
-import streamlit as st
+
+### streamlit_app.py
+
 import requests
+import streamlit as st
 
-st.set_page_config(page_title="SHL RAG Recommender", layout="wide")
+st.title("SHL Assessment Recommender")
 
-API_URL = "https://your-render-api-url.onrender.com/ask"  # Replace after Render deployment
+query = st.text_input("Enter your goal, job, or skill (e.g., software developer role)")
+top_k = st.slider("Number of assessments to recommend", min_value=1, max_value=10, value=3)
 
-st.title("🔍 SHL Assessment Recommender")
-
-query = st.text_input("Describe the job requirement or candidate profile:")
-
-k = st.slider("Number of relevant assessments to retrieve", 1, 10, 5)
-
-if st.button("Find Recommendations") and query:
+if st.button("Get Recommendations"):
     with st.spinner("Fetching recommendations..."):
-        params = {"query": query, "k": k}
-        try:
-            response = requests.get(API_URL, params=params)
-            data = response.json()
-            st.subheader("🔎 Recommendations:")
-            for item in data["results"]:
-                st.markdown(f"### [{item['test_name']}]({item['test_url']})")
-                st.markdown(f"- **Duration**: {item.get('assessment_length', 'N/A')}")
-                st.markdown(f"- **Job Levels**: {item.get('job_levels', 'N/A')}")
-                st.markdown(f"- **Languages**: {item.get('languages', 'N/A')}")
-                st.markdown(f"- **Description**: {item.get('description', 'N/A')}")
+        response = requests.post(
+            "https://your-backend-url.onrender.com/recommend",
+            json={"query": query, "top_k": top_k},
+        )
+        if response.status_code == 200:
+            results = response.json()["results"]
+            for r in results:
+                st.markdown(f"**[{r['name']}]({r['url']})**")
+                st.markdown(f"- Remote Testing: {r['remote_testing']}")
+                st.markdown(f"- Adaptive/IRT Support: {r['adaptive_irt']}")
+                st.markdown(f"- Duration: {r['assessment_length']}")
+                st.markdown(f"- Type: {r['assessment_types']}")
                 st.markdown("---")
-        except Exception as e:
-            st.error(f"Error: {e}")
+
+
+
