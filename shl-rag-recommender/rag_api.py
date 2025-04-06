@@ -13,8 +13,8 @@ import google.generativeai as genai
 app = Flask(__name__)
 
 # Load FAISS index
-index = faiss.read_index("embeddings/faiss_index.index")
-with open("embeddings/docstore.pkl", "rb") as f:
+index = faiss.read_index("data/shl_index.faiss")
+with open("data/shl_metadata.pkl", "rb") as f:
     docstore = pickle.load(f)
 
 index_to_docstore_id = {i: str(i) for i in range(index.ntotal)}
