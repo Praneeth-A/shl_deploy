@@ -13,7 +13,7 @@ top_k = st.slider("Number of assessments to recommend", min_value=1, max_value=1
 if st.button("Get Recommendations"):
     with st.spinner("Fetching recommendations..."):
         response = requests.post(
-            "https://your-backend-url.onrender.com/recommend",
+            " https://shl-deploy.onrender.com/recommend",
             json={"query": query, "top_k": top_k},
         )
         if response.status_code == 200:
