@@ -4,7 +4,7 @@ uvicorn[standard]
 faiss-cpu
 langchain
 pydantic
-sentence-transformers>=2.2.2
-transformers>=4.32.0
+transformers==4.35.2 
+sentence-transformers==2.2.2
 numpy
 requests
