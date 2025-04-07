@@ -1,23 +1,27 @@
-import streamlit as st
-import requests
+# import streamlit as st
 
-st.title("SHL Assessment Recommender")
+if __name__ == "__main__":
+    import streamlit as st
+    import requests
 
-query = st.text_input("Enter job description or requirement")
+    st.title("SHL Assessment Recommender")
 
-if st.button("Get Recommendations"):
-    if query:
-        with st.spinner("Fetching recommendations..."):
-            response = requests.post(
-                "https://shl-deploy.onrender.com/recommend",
-                json={"query": query}
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data:
-                    st.markdown("### Recommended Assessments")
-                    st.table(data)
+    query = st.text_input("Enter job description or requirement")
+
+    if st.button("Get Recommendations"):
+        if query:
+            with st.spinner("Fetching recommendations..."):
+                response = requests.post(
+                    "https://shl-deploy.onrender.com/recommend",
+                    json={"query": query}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data:
+                        st.markdown("### Recommended Assessments")
+                        st.table(data)
+                    else:
+                        st.warning("No relevant assessments found.")
                 else:
-                    st.warning("No relevant assessments found.")
-            else:
-                st.error("Error in retrieving recommendations.")
+                    st.error("Error in retrieving recommendations.")
+        # streamlit logic here

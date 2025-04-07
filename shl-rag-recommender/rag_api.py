@@ -2,9 +2,9 @@
 import os
 import faiss
 import pickle
-import numpy as np
+# import numpy as np
 from flask import Flask, request, jsonify
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.docstore import InMemoryDocstore
 import google.generativeai as genai
@@ -112,4 +112,5 @@ Return names only, one per line. No bullets or numbering.
     return jsonify(results)
 
 if __name__ == "__main__":
+    
     app.run(host="0.0.0.0", port=8000)
