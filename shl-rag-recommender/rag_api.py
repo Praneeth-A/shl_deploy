@@ -1,5 +1,4 @@
-### rag_api.py
-
+# rag_api.py
 import os
 import faiss
 import pickle
@@ -10,65 +9,75 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.docstore import InMemoryDocstore
 import google.generativeai as genai
 
-app = Flask(__name__)
-
-# Load FAISS index
-index = faiss.read_index("data/shl_index.faiss")
+# Load FAISS index and docstore
 with open("data/shl_metadata.pkl", "rb") as f:
     docstore = pickle.load(f)
+# with open("embeddings/index_to_docstore_id.pkl", "rb") as f:
+#     index_to_docstore_id = pickle.load(f)
+index = faiss.read_index("data/shl_index.faiss")
 
-index_to_docstore_id = {i: str(i) for i in range(index.ntotal)}
+# LangChain FAISS setup
 vectorstore = FAISS(
     embedding_function=None,
     index=index,
     docstore=InMemoryDocstore(docstore),
-    index_to_docstore_id=index_to_docstore_id,
+    index_to_docstore_id={i: str(i) for i in range(index.ntotal)}
+,
 )
 
 embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-def format_docs_for_gemini(docs):
-    formatted = []
-    for doc in docs:
-        metadata = doc.metadata
-        formatted.append(
-            f"name: {metadata.get('name', '')}\n"
-            f"remote_testing: {metadata.get('remote_testing', '')}\n"
-            f"adaptive_irt: {metadata.get('adaptive_irt', '')}\n"
-            f"assessment_types: {metadata.get('assessment_types', '')}\n"
-            f"description: {metadata.get('description', '')}\n"
-            f"job_levels: {metadata.get('job_levels', '')}\n"
-            f"languages: {metadata.get('languages', '')}\n"
-            f"assessment_length: {metadata.get('assessment_length', '')}\n"
-        )
-    return "\n---\n".join(formatted)
+# Gemini setup
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel("gemini-pro")
+
+app = Flask(__name__)
 
 @app.route("/recommend", methods=["POST"])
 def recommend():
-    data = request.json
+    data = request.get_json()
     query = data.get("query", "")
-    top_k = int(data.get("top_k", 3))
-
-    if not query:
-        return jsonify({"error": "Query not provided"}), 400
-
-    # Embed the query
     query_embedding = embedding_model.embed_query(query)
 
-    # Retrieve top 20 documents
-    docs = vectorstore.similarity_search_by_vector(query_embedding, k=20)
-    formatted_docs = format_docs_for_gemini(docs)
+    # Hybrid FAISS approach
+    docs_and_scores = vectorstore.similarity_search_with_score_by_vector(query_embedding, k=20)
 
-    prompt = (
-        "You are an assistant that helps recommend assessments from a list."
-        " Given the following assessments and the user query, return the names of the top"
-        f" {top_k} most relevant assessments in order of relevance.\n\n"
-        f"Assessments:\n{formatted_docs}\n\nQuery: {query}\n\n"
-        "Return a list of the top assessments' names only in order."
-    )
+    # Filter based on scores, guarantee at least 1
+    threshold = 0.4  # adjust as needed
+    filtered_docs = [doc for doc, score in docs_and_scores if score < threshold]
+    if not filtered_docs:
+        filtered_docs = [docs_and_scores[0][0]]  # fallback to top-1
 
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-    model = genai.GenerativeModel("gemini-pro")
+    # Format retrieved documents for Gemini
+    formatted = []
+    for doc in filtered_docs:
+        meta = doc.metadata
+        formatted.append(f"""
+name: {meta.get('name', '')}
+remote_testing: {meta.get('remote_testing', '')}
+adaptive_irt: {meta.get('adaptive_irt', '')}
+assessment_types: {meta.get('assessment_types', '')}
+description: {meta.get('description','')}
+job_levels: {meta.get('job_levels', '')}
+languages: {meta.get('languages', '')}
+assessment_length: {meta.get('assessment_length', '')}
+""")
+
+    joined_docs = "\n".join(formatted)
+    prompt = f"""You are an assistant that helps recommend assessments from a list.
+Given the following assessments and the user query, return the names of
+the most relevant assessments — at most 10, at least 1 — in order of relevance.
+
+Assessments:
+{joined_docs}
+
+Query: {query}
+
+Return a list of the top assessments' names only in order.
+Return only the top relevant assessment names.
+Return names only, one per line. No bullets or numbering.
+"""
+
     response = model.generate_content(prompt,
     generation_config={
         "temperature": 0.7,
@@ -81,26 +90,26 @@ def recommend():
         {"category": "HARM_CATEGORY_VIOLENCE", "threshold": 3},
         {"category": "HARM_CATEGORY_SEXUAL", "threshold": 3},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": 3},
-    ]
-)
-    recommended_names = response.text.strip().split("\n")
+    ])
+    assessment_names = response.text.strip().splitlines()
+
+    # Clean and lookup final results
+    name_to_doc = {doc.metadata['name']: doc for doc in filtered_docs if 'name' in doc.metadata}
+    final_docs = [name_to_doc[name.strip()] for name in assessment_names if name.strip() in name_to_doc]
 
     results = []
-    for name in recommended_names:
-        for doc in docs:
-            if doc.metadata.get("name", "").strip().lower() == name.strip().lower():
-                results.append({
-                    "name": doc.metadata.get("name", ""),
-                    "url": doc.metadata.get("url", ""),
-                    "remote_testing": doc.metadata.get("remote_testing", ""),
-                    "adaptive_irt": doc.metadata.get("adaptive_irt", ""),
-                    "assessment_length": doc.metadata.get("assessment_length", ""),
-                    "assessment_types": doc.metadata.get("assessment_types", ""),
-                })
-                break
+    for doc in final_docs:
+        meta = doc.metadata
+        results.append({
+            "name": meta.get("name", ""),
+            "url": meta.get("url", ""),
+            "remote_testing": meta.get("remote_testing", ""),
+            "adaptive_irt": meta.get("adaptive_irt", ""),
+            "assessment_length": meta.get("assessment_length", ""),
+            "assessment_types": meta.get("assessment_types", ""),
+        })
 
-    return jsonify({"results": results})
+    return jsonify(results)
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
+    app.run(host="0.0.0.0", port=8000)
