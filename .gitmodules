@@ -1,0 +1,6 @@
+[submodule "shlbackend"]
+	path = shlbackend
+	url = https://github.com/Praneeth-A/shlbackend
+[submodule "shlfrontend"]
+	path = shlfrontend
+	url = https://github.com/Praneeth-A/shlfrontend
