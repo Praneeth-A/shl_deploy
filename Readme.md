@@ -10,8 +10,7 @@ This project recommends the most relevant SHL assessments based on user queries 
 shlbackend/ @ commit 55546bf
 ├── data/                        # FAISS index and .pkl metadata
 │   ├── shl_index.faiss
-│   ├── docstore.pkl
-│   └── index_to_docstore_id.pkl
+│   └── docstore.pkl
 ├── onnx_model/                 # Optional: used if embedding model is optimized
 ├── rag_api.py                  # Main Flask backend for RAG
 ├── requirements.txt            # Backend dependencies
