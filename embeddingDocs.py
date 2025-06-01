@@ -4,6 +4,7 @@ import faiss
 import pickle
 from langchain.schema import Document
 # Load JSON
+
 with open(dest_path, "r", encoding="utf-8") as f:
     tests = json.load(f)
 
