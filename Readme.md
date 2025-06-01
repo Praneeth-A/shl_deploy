@@ -23,6 +23,7 @@ shlScrapedData.json             # Contains scraped data from shl website
 embeddingDocs.py                # Script to embed scraped data into FAISS index + pkl
 webScraping.py                  # Script to scrape SHL catalog and tests
 problemApproach.pdf             # Detailed explaination of approach to problem statement
+exampleOutput.jpg               # screenshot of example query's result
 ```
 
 ---
